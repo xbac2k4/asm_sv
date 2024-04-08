@@ -27,7 +27,6 @@ router.get('/get-distributor', async (req, res) => {
 
 // Thêm sản phẩm
 router.post("/add-distributor", async (req, res) => {
-    database.connect();
     try {
         const { name } = req.body;
 
@@ -38,16 +37,23 @@ router.post("/add-distributor", async (req, res) => {
         });
 
         // Lưu sản phẩm mới vào cơ sở dữ liệu
-        const savedDistributor = await DistributorModel.create(newDistributor);
-
-        res.status(201).json(savedDistributor); // Trả về sản phẩm vừa được tạo thành công
+        const savedDistributor = await newDistributor.save();
+        if (savedDistributor) {
+            res.json({
+                "status": 200,
+                "messenger": "Thâm thành công",
+                "data": savedDistributor
+            })
+        }
+        
+        // res.status(201).json(savedDistributor); // Trả về sản phẩm vừa được tạo thành công
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 });
 
 // Sửa sản phẩm
-router.put("/update-distributor/:id", async (req, res) => {
+router.put("/update-distributor-by-id/:id", async (req, res) => {
     try {
         const { id } = req.params;
         const { name } = req.body;
@@ -61,25 +67,65 @@ router.put("/update-distributor/:id", async (req, res) => {
         if (!updatedDistributor) {
             return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
         }
-
-        res.json(updatedDistributor);
+        const result = await updatedDistributor.save();
+        if (result) {
+            res.json({
+                'status': 200,
+                'messenger': 'Cập nhật thành công',
+                'data': result
+            })
+        }
+        // res.json(updatedDistributor);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 });
 
-// Xóa sản phẩm
-router.delete("/delete-distributor/:id", async (req, res) => {
+router.get('/search-distributor-by-name', async (req, res) => {
+    const {name} = req.query;
     try {
-        const { id } = req.params;
-
-        const deletedDistributor = await DistributorModel.findByIdAndDelete(id);
-
-        if (!deletedDistributor) {
-            return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+        const data = await DistributorModel.find({
+            name: { $regex: new RegExp(name, "i") },
+        }).sort({ createdAt: -1 });
+        
+        if (data) {
+            res.json({
+                "status": 200,
+                "messenger": "Thành công",
+                "data": data
+            })
+        } else {
+            res.json({
+                "status": 400,
+                "messenger": "Lỗi, không thành công",
+                "data": []
+            })
         }
+        // res.send(results);
+    } catch (error) {
+        console.error('Error searching:', error);
+        res.status(500).json({ error: "Đã xảy ra lỗi khi tìm kiếm" });
+    }
+});
 
-        res.json({ message: "Xóa sản phẩm thành công" });
+// Xóa sản phẩm
+router.delete("/delete-distributor-by-id/:id", async (req, res) => {
+    try {
+        const { id } = req.params
+        const result = await DistributorModel.findByIdAndDelete(id);
+        if (result) {
+            res.json({
+                "status": 200,
+                "messenger": "Xóa thành công",
+                "data": result
+            })
+        } else {
+            res.json({
+                "status": 400,
+                "messenger": "Lỗi! xóa không thành công",
+                "data": []
+            })
+        }
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -283,14 +329,14 @@ router.post('/register-send-email', Upload.single('avartar'), async (req, res) =
         })
         const result = await newUser.save()
         if (result) { //Gửi mail
-            // const mailOptions = {
-            //     from: "bacnxph44315@fpt.edu.vn", //email gửi đi
-            //     to: result.email, // email nhận
-            //     subject: "Đăng ký thành công", //subject
-            //     text: "Cảm ơn bạn đã đăng ký", // nội dung mail
-            // };
-            // // Nếu thêm thành công result !null trả về dữ liệu
-            // await Transporter.sendMail(mailOptions); // gửi mail
+            const mailOptions = {
+                from: "ngoxuanbac2k4@gmail.com", //email gửi đi
+                to: result.email, // email nhận
+                subject: "Đăng ký thành công", //subject
+                text: "Cảm ơn bạn đã đăng ký", // nội dung mail
+            };
+            // Nếu thêm thành công result !null trả về dữ liệu
+            await Transporter.sendMail(mailOptions); // gửi mail
             res.json({
                 "status": 200,
                 "messenger": "Thêm thành công",
